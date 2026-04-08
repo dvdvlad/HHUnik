@@ -1,0 +1,24 @@
+
+printf "
+# Виртуальное окружение
+.venv/
+env/
+venv/
+ENV/
+
+# Python кэш
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# База данных
+*.sqlite3
+
+# Файлы IDE (VS Code, PyCharm)
+.vscode/
+.idea/
+
+# Логи и статика (по желанию)
+*.log
+static/
+" > .gitignore
