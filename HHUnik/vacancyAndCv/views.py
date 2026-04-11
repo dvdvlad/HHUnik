@@ -5,7 +5,7 @@ class AddPage(CreateView):
     model = Vacancy
     fields = '__all__'
     template_name = 'vacancy/addpage.html'
-    success_url = reverse_lazy('/')
+    success_url = reverse_lazy('main:index')
     extra_context = {
         'title': 'Добавление статьи',
     }
