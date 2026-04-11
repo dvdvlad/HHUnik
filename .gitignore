@@ -10,6 +10,10 @@ ENV/
 **/__pycache__/
 *.py[cod]
 *$py.class
+<<<<<<< HEAD
+=======
+*.pyc
+>>>>>>> dvd
 
 # База данных
 *.sqlite3
@@ -21,4 +25,8 @@ ENV/
 # Логи и статика (по желанию)
 *.log
 static/
+<<<<<<< HEAD
 " > .gitignore
+=======
+" > .gitignore
+>>>>>>> dvd

@@ -5,6 +5,7 @@ from registration import views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("registr/",include("registration.urls")),
+    path("registr",include("registration.urls")),
     path("",include("main.urls")),
+    path("createVCandCV",include("vacancyAndCv.urls")),
 ]
