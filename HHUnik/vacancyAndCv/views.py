@@ -6,15 +6,9 @@ class AddVacancy(CreateView):
     fields = '__all__'
     template_name = 'vacancy/addVacancy.html'
     success_url = reverse_lazy('main:index')
-    extra_context = {
-        'title': 'Вакансии',
-    }
 
 class AddСV(CreateView):
     model = CV
     fields = '__all__'
     template_name = 'vacancy/addCV.html'
     success_url = reverse_lazy('main:index')
-    extra_context = {
-        'title': 'Добавление резюме',
-    }
