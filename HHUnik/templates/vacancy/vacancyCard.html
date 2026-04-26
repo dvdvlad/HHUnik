@@ -5,5 +5,6 @@
 >
     <h2>{{item.title}}</h2>
     <small>Опубликовано: {{ item.time_create|date:"Y.m.d" }}</small>
-    <p>{{item.content|truncatewords:50}}</p>
+    {% load markdownExtras %}
+    <p>{{item.content|truncatewords:50|latticeCleaner}}</p>
 </div>
