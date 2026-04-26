@@ -1,36 +1,33 @@
+{% load static %}
 <!doctype html>
 <html>
+    <div class="header">
     <head>
-        <div class="header">
-            {% if user.is_authenticated %}
-            {% if user.isHR %}
-            <a href="{% url 'main:hrAccountPage' %}">Здраствуй:{{user.username}}</a>
-            {% else %}
-            <a href="{% url 'main:index' %}">Здраствуй:{{user.username}}</a>
-            {% endif %}
-            <form action="{% url 'registration:Logout' %}" method="post">
-                {% csrf_token %}
-                <button type="submit">Выйти</button>
-            </form>
-            {%else %}
-            <form action="{% url 'registration:Login' %}" method="get">
-                {% csrf_token %}
-                <button type="submit">Войти</button>
-            </form>
-            <form action="{% url 'registration:Registration' %}" method="get">
-                {% csrf_token %}
-                <button type="submit">Зарегестрироваться</button>
-            </form>
-            {% endif %}
-            {% if user.isHR %}
-            <a href="{% url 'vacancyAndCv:Vacancy' %}">Вакансии</a>
-            {% else %}
-            <a href="{% url 'vacancyAndCv:CV' %}">Резюме</a>
-            {% endif %}
-            <a href="{% url 'vacancyAndCv:listVacancy' %}">Все вакансии</a>
-        </div>
+        <link rel="stylesheet" href="{% static 'css/main.css' %}" />
     </head>
-    <body>
-        {% block content%}{% endblock %}
+        {% if user.is_authenticated %} {% if user.isHR %}
+        <a href="{% url 'main:hrAccountPage' %}">Здраствуй: {{ user.username }}</a>
+        {% else %}
+        <a href="{% url 'main:workerAccountPage' %}">Здраствуй: {{ user.username }}</a>
+        {% endif %}
+        <form action="{% url 'registration:Logout' %}" method="post">
+            {% csrf_token %}
+            <button type="submit">Выйти</button>
+        </form>
+        {% else %}
+        <form action="{% url 'registration:Login' %}" method="get">
+            <button type="submit">Войти</button>
+        </form>
+        <form action="{% url 'registration:Registration' %}" method="get">
+            <button type="submit">Зарегестрироваться</button>
+        </form>
+        {% endif %} {% if user.isHR %}
+        <a href="{% url 'vacancyAndCv:Vacancy' %}">Вакансии</a>
+        {% else %}
+        <a href="{% url 'vacancyAndCv:CV' %}">Резюме</a>
+        {% endif %}
+        <a href="{% url 'vacancyAndCv:listVacancy' %}">Все вакансии</a>
+    </div>
+        {% block content %}{% endblock %}
     </body>
 </html>

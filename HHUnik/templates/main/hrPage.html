@@ -1,3 +1,54 @@
-{% extends 'base.html' %} {% block content%}
-    <p>1231</p>
+{% extends 'base.html' %} {% block content %}
+<div class="content">
+    <h1>Личный кабинет HR</h1>
+    <span>Имя пользователя</span>
+    <p><strong>{{ user.username }}</strong></p>
+    <span>Email</span>
+    <p>{{ user.email|default:"Не указан" }}</p>
+    <span>Полное имя</span>
+    <p>
+        {% if user.first_name or user.last_name %} {{ user.first_name }} {{
+        user.last_name }} {% else %} Не указано {% endif %}
+    </p>
+    <span>Дата регистрации</span>
+    <p>{{ user.date_joined|date:"d.m.Y" }}</p>
+    <span>Роль</span>
+    <p>HR-менеджер</p>
+    <span>Вакансий всего</span>
+    <p><strong>{{ vacancies|length }}</strong></p>
+
+    <h2>Мои вакансии</h2>
+    <a href="{% url 'vacancyAndCv:Vacancy' %}">+ Создать вакансию</a>
+
+    {% if vacancies %} {% for vacancy in vacancies %}
+    <div class="vacancyCard">
+        <a href="{{ vacancy.get_absolute_url }}">{{ vacancy.title }}</a>
+        {% if vacancy.is_published %}
+        <span class="badge-published">Опубликовано</span>
+        {% else %}
+        <span class="badge-draft">Черновик</span>
+        {% endif %}
+        <span>Создано: {{ vacancy.time_create|date:"d.m.Y" }}</span>
+        <span>Обновлено: {{ vacancy.time_update|date:"d.m.Y" }}</span>
+        {% if vacancy.content %}
+        <p class="cv-card-preview">{{ vacancy.content|truncatechars:120 }}</p>
+        {% endif %}
+        <span>Откликов: {{ vacancy.sendCV.count }}</span>
+        <a href="{{ vacancy.get_absolute_url }}">Просмотр</a>
+        <form
+            method="post"
+            action="{% url 'vacancyAndCv:toggleVacancyPublish' vacancy.slug %}"
+        >
+            {% csrf_token %} {% if vacancy.is_published %}
+            <button type="submit">Снять с публикации</button>
+            {% else %}
+            <button type="submit">Опубликовать</button>
+            {% endif %}
+        </form>
+    </div>
+    {% endfor %} {% else %}
+    <p>У вас пока нет вакансий</p>
+    <a href="{% url 'vacancyAndCv:Vacancy' %}">Создать первую вакансию</a>
+    {% endif %}
+</div>
 {% endblock %}

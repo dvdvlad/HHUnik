@@ -1,4 +1,5 @@
 {% extends 'base.html' %} {% block content%}
+<div> 
 <h1>Создание резюме</h1>
 <form method="post">
     {% csrf_token %}
@@ -8,4 +9,5 @@
     <div class="form-error">{{ f.errors }}</div>
     {% endfor %}<p><button type="submit">Сохранить резюме</button></p>
 </form>
+</div>
 {% endblock %}

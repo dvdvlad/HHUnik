@@ -1,8 +1,4 @@
-<div
-    class="vacancyCard"
-    style="background-color: gray; padding: 20px; margin: 20px"
-    onclick="location.href='{{ item.get_absolute_url }}';"
->
+<div class="vacancyCard content" onclick="location.href='{{ item.get_absolute_url }}';">
     <h2>{{item.title}}</h2>
     <small>Опубликовано: {{ item.time_create|date:"Y.m.d" }}</small>
     {% load markdownExtras %}

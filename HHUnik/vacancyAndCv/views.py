@@ -3,13 +3,18 @@ from django.shortcuts import get_object_or_404, redirect
 from vacancyAndCv.models import Vacancy, CV
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import HttpResponseForbidden
 
 
 class AddVacancy(LoginRequiredMixin, CreateView):
     model = Vacancy
     fields = ["title", "content", "is_published"]
     template_name = 'vacancy/addVacancy.html'
-    success_url = reverse_lazy('main:index')
+    success_url = reverse_lazy('main:hrAccountPage')
+
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        return super().form_valid(form)
 
 
 class AddСV(LoginRequiredMixin, CreateView):
@@ -29,7 +34,7 @@ class AllVacancyShow(LoginRequiredMixin, ListView):
     context_object_name = 'items'
 
     def get_queryset(self):
-        return Vacancy.objects.filter(is_published=True)
+        return Vacancy.objects.filter(is_published=True)#type: ignore
 
 
 class VacancyDetailView(LoginRequiredMixin, DetailView):
@@ -41,12 +46,17 @@ class VacancyDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
         if not user.isHR:
-            # Все резюме пользователя
-            user_cvs = CV.objects.filter(user=user, is_published=True)
             # Уже отправленные на эту вакансию
             sent_cv_ids = self.object.sendCV.filter(user=user).values_list('pk', flat=True)
-            context['user_cvs'] = user_cvs.exclude(pk__in=sent_cv_ids)
-            context['sent_cvs'] = CV.objects.filter(pk__in=sent_cv_ids)
+            context['sent_cvs'] = CV.objects.filter(pk__in=sent_cv_ids)  #type: ignore
+            # Показываем список доступных резюме только если ещё ничего не отправлено
+            if not sent_cv_ids:
+                context['user_cvs'] = CV.objects.filter(user=user, is_published=True)  #type: ignore
+            else:
+                context['user_cvs'] = CV.objects.none() #type: ignore
+        else:
+            # HR видит все присланные резюме на эту вакансию
+            context['all_sent_cvs'] = self.object.sendCV.select_related('user').order_by('-time_create')  # type: ignore
         return context
 
 
@@ -56,6 +66,9 @@ class SendCVView(LoginRequiredMixin, View):
         cv_id = request.POST.get('cv_id')
         # Проверяем что резюме принадлежит текущему пользователю
         cv = get_object_or_404(CV, pk=cv_id, user=request.user)
+        # Запрещаем отправку, если пользователь уже откликнулся на эту вакансию
+        if vacancy.sendCV.filter(user=request.user).exists():
+            return redirect(vacancy.get_absolute_url())
         vacancy.sendCV.add(cv)
         return redirect(vacancy.get_absolute_url())
 
@@ -74,3 +87,23 @@ class CVDetailView(LoginRequiredMixin, DetailView):
     model = CV
     template_name = 'vacancy/cvFull.html'
     context_object_name = 'item'
+
+
+class ToggleCVPublishView(LoginRequiredMixin, View):
+    def post(self, request, slug):
+        cv = get_object_or_404(CV, slug=slug)
+        if cv.user != request.user:
+            return HttpResponseForbidden()
+        cv.is_published = not cv.is_published
+        cv.save()
+        return redirect('main:workerAccountPage')
+
+
+class ToggleVacancyPublishView(LoginRequiredMixin, View):
+    def post(self, request, slug):
+        vacancy = get_object_or_404(Vacancy, slug=slug)
+        if vacancy.user != request.user:
+            return HttpResponseForbidden()
+        vacancy.is_published = not vacancy.is_published
+        vacancy.save()
+        return redirect('main:hrAccountPage')

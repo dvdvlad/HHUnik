@@ -3,6 +3,7 @@ from django.conf import settings
 from main.models import slugMixin
 
 class Vacancy(slugMixin,models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='created_vacancies', null=True, blank=True)  # type: ignore
     title = models.CharField(max_length=255)
     content = models.TextField(blank=True)
     time_create = models.DateTimeField(auto_now_add=True)
