@@ -3,7 +3,11 @@
     <head>
         <div class="header">
             {% if user.is_authenticated %}
-            <p>Здраствуй:{{user.username}}</p>
+            {% if user.isHR %}
+            <a href="{% url 'main:hrAccountPage' %}">Здраствуй:{{user.username}}</a>
+            {% else %}
+            <a href="{% url 'main:index' %}">Здраствуй:{{user.username}}</a>
+            {% endif %}
             <form action="{% url 'registration:Logout' %}" method="post">
                 {% csrf_token %}
                 <button type="submit">Выйти</button>
