@@ -1,12 +1,81 @@
-{% extends 'base.html' %} {% block content%}
+{% extends 'base.html' %} {% block content %} {% load markdownExtras %}
+
 <div
     class="vacancyCard"
     style="background-color: gray; padding: 20px; margin: 20px"
-    onclick="location.href='{{ item.get_absolute_url }}';"
 >
-    <h2>{{item.title}}</h2>
+    <h2>{{ item.title }}</h2>
     <small>Опубликовано: {{ item.time_create|date:"Y.m.d" }}</small>
-    {% load markdownExtras %}
-    <p>{{item.content|markdown|safe}}</p>
+    <p>{{ item.content|markdown|safe }}</p>
 </div>
-{% endblock %}
+
+{% if not request.user.isHR %}
+<div
+    style="
+        background-color: #f0f0f0;
+        padding: 20px;
+        margin: 20px;
+        border-radius: 8px;
+    "
+>
+    <h3>Откликнуться на вакансию</h3>
+    {% if sent_cvs %}
+    <div style="margin-bottom: 16px">
+        <strong>Уже отправлено:</strong>
+        <ul>
+            {% for cv in sent_cvs %}
+            <li
+                style="
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    margin-bottom: 4px;
+                "
+            >
+                {{ cv.title }}
+                <form
+                    method="post"
+                    action="{% url 'vacancyAndCv:withdrawCV' item.slug %}"
+                >
+                    {% csrf_token %}
+                    <input type="hidden" name="cv_id" value="{{ cv.pk }}" />
+                    <button
+                        type="submit"
+                        style="
+                            background: none;
+                            border: 1px solid #c0392b;
+                            color: #c0392b;
+                            padding: 2px 8px;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 0.85em;
+                        "
+                    >
+                        Отозвать
+                    </button>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %} {% if user_cvs %}
+    <form method="post" action="{% url 'vacancyAndCv:sendCV' item.slug %}">
+        {% csrf_token %}
+        <label for="cv_id">Выберите резюме:</label>
+        <select name="cv_id" id="cv_id" style="margin: 0 8px">
+            {% for cv in user_cvs %}
+            <option value="{{ cv.pk }}">{{ cv.title }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Отправить</button>
+    </form>
+    {% elif not sent_cvs %}
+    <p>
+        У вас нет опубликованных резюме.
+        <a href="{% url 'vacancyAndCv:CV' %}">Создать резюме</a>
+    </p>
+    {% else %}
+    <p>Вы уже отправили все свои резюме на эту вакансию.</p>
+    {% endif %}
+</div>
+{% endif %} {% endblock %}
