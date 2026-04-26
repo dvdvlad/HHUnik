@@ -18,8 +18,11 @@
                 <button type="submit">Зарегестрироваться</button>
             </form>
             {% endif %}
+            {% if user.isHR %}
             <a href="{% url 'vacancyAndCv:Vacancy' %}">Вакансии</a>
+            {% else %}
             <a href="{% url 'vacancyAndCv:CV' %}">Резюме</a>
+            {% endif %}
             <a href="{% url 'vacancyAndCv:listVacancy' %}">Все вакансии</a>
         </div>
     </head>

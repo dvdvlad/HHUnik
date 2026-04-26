@@ -1,6 +1,4 @@
-<!doctype html>
-<html>
-    <p>test</p>
+{% extends 'base.html' %} {% block content%}
     {% if user.is_authenticated %}
     <li class="last">
         <form action="{% url 'registration:Logout' %}" method="post">
@@ -11,4 +9,4 @@
     {% else %}
     <p>нецкуп</p>
     {% endif%}
-</html>
+{% endblock %}

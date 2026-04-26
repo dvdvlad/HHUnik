@@ -1,8 +1,10 @@
 from django.contrib.auth.models import AbstractUser
 from django.utils.text import slugify
 from django.urls import reverse
+from django.views.generic.dates import models
 
-class User(AbstractUser): ...
+class User(AbstractUser):
+    isHR=models.BooleanField(default=True)# type: ignore
 
 
 class slugMixin:

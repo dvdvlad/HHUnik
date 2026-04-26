@@ -75,3 +75,4 @@ STATIC_URL = "static/"
 LOGOUT_REDIRECT_URL = 'main:index'
 LOGIN_REDIRECT_URL = 'main:index'
 AUTH_USER_MODEL = 'main.User'
+LOGIN_URL = 'registration:Login'
