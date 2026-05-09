@@ -5,6 +5,7 @@ app_name = 'vacancyAndCv'
 urlpatterns = [
     path("", views.AllVacancyShow.as_view(), name="listVacancy"),
     path("add/", views.AddVacancy.as_view(), name="Vacancy"),
+    path("addPDF/", views.BulkResumeUploadView.as_view(), name="addVacancyPDF"),
     path("cv/", views.AddСV.as_view(), name="CV"),
     re_path(r'^cv/(?P<slug>[\w-]+)/$', views.CVDetailView.as_view(), name="cvCard"),
     re_path(r'^cv/(?P<slug>[\w-]+)/toggle-publish/$', views.ToggleCVPublishView.as_view(), name="toggleCVPublish"),

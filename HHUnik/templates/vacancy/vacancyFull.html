@@ -1,6 +1,6 @@
 {% extends 'base.html' %} {% block content %} {% load markdownExtras %}
 <div class="content">
-    <h2>{{ item.title }}</h2>
+    <h2>{{ item.title|latticeCleaner}}</h2>
     <small>Создано: {{ item.time_create|date:"d.m.Y" }}</small>
     {% if item.is_published %}
     <span class="badge-published">Опубликовано</span>

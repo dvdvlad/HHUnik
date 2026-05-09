@@ -7,3 +7,4 @@ urlpatterns = [
     path("", include("main.urls")),
     path("vacancy/", include("vacancyAndCv.urls")),
 ]
+

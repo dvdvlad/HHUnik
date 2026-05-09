@@ -14,7 +14,7 @@ INSTALLED_APPS = [
     "registration",
     "main",
     "vacancyAndCv",
-    "cvAndVacancyMatching"
+    "cvAndVacancyMatching",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

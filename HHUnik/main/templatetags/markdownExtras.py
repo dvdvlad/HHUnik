@@ -1,7 +1,7 @@
 from django import template
 from django.template.defaultfilters import stringfilter
 import markdown as md
-import re
+from django.utils.html import strip_tags
 register = template.Library()
 
 @register.filter()
@@ -12,4 +12,5 @@ def markdown(value):
 @register.filter()
 @stringfilter
 def latticeCleaner(value):
-    return re.sub(r"[#*]","",value)
+    html = md.markdown(value)
+    return strip_tags(html)

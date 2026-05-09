@@ -1,4 +1,4 @@
-from django.views.generic import CreateView, ListView, DetailView, View
+from django.views.generic import CreateView, ListView, DetailView, View, TemplateView
 from django.shortcuts import get_object_or_404, redirect
 from vacancyAndCv.models import Vacancy, CV
 from django.urls import reverse_lazy
@@ -6,7 +6,10 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponseForbidden
 from cvAndVacancyMatching.embeding import  lmstudio,match
 from cvAndVacancyMatching.models import VacancyResponse
-from .dtoTransfer import cvToDto, vacancyToDto
+from django.http import JsonResponse
+import tempfile,os
+import pymupdf4llm
+
 class AddVacancy(LoginRequiredMixin, CreateView):
     model = Vacancy
     fields = ["title", "content", "is_published"]
@@ -138,3 +141,75 @@ class ToggleVacancyPublishView(LoginRequiredMixin, View):
         vacancy.is_published = not vacancy.is_published
         vacancy.save()
         return redirect('main:hrAccountPage')
+
+
+
+class BulkResumeUploadView(LoginRequiredMixin, TemplateView):
+    # Указываем имя шаблона
+    template_name = 'vacancy/uploadVacancy.html' 
+
+    def post(self, request, *args, **kwargs):
+            files = request.FILES.getlist("resumes")
+            results = []
+    
+            if not files:
+                return JsonResponse({"success": False, "error": "Файлы не получены"}, status=400)
+    
+            for uploaded_file in files:
+                if not uploaded_file.name.endswith('.pdf'):
+                    continue
+    
+                # 1. Создаем временный файл
+                # delete=False нужен, чтобы файл не удалился сразу после закрытия дескриптора, 
+                # так как pymupdf4llm будет открывать его по пути (path)
+                with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_file:
+                    for chunk in uploaded_file.chunks():
+                        temp_file.write(chunk)
+                    temp_path = temp_file.name
+    
+                try:
+                    # 2. Конвертируем PDF в Markdown через pymupdf4llm
+                    md_text = pymupdf4llm.to_markdown(temp_path)
+    
+                    # 3. Отделяем заголовок от контента
+                    # Очищаем текст от лишних пробелов и делим на строки
+                    lines = [line.strip() for line in md_text.split('\n') if line.strip()]
+                    
+                    if lines:
+                        # Заголовок — первая строка (убираем символы Markdown #)
+                        parsed_title = lines[0].lstrip('#').strip()
+                        # Контент — всё остальное
+                        parsed_content = "\n".join(lines[1:])
+                    else:
+                        parsed_title = uploaded_file.name
+                        parsed_content = md_text
+    
+                    # 4. Сохраняем в БД
+                    # slug сгенерируется автоматически благодаря вашему slugMixin
+                    vacancy_obj = Vacancy.objects.create(
+                        user=request.user,           # Привязка к текущему пользователю
+                        title=parsed_title,          # Заголовок из PDF
+                        content=parsed_content,      # Текст из PDF
+                        is_published=True            # Или False, по вашему усмотрению
+                    )
+    
+                    results.append({
+                        "id": vacancy_obj.id,
+                        "title": vacancy_obj.title,
+                        "slug": vacancy_obj.slug
+                    })
+    
+                except Exception as e:
+                    # В продакшене лучше использовать logging
+                    print(f"Ошибка обработки файла {uploaded_file.name}: {str(e)}")
+                    continue 
+                finally:
+                    # Удаляем временный файл вручную
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+    
+            return JsonResponse({
+                "success": True,
+                "count": len(results),
+                "results": results
+            })
