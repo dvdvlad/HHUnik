@@ -4,8 +4,9 @@ from vacancyAndCv.models import Vacancy, CV
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponseForbidden
-
-
+from cvAndVacancyMatching.embeding import  lmstudio,match
+from cvAndVacancyMatching.models import VacancyResponse
+from .dtoTransfer import cvToDto, vacancyToDto
 class AddVacancy(LoginRequiredMixin, CreateView):
     model = Vacancy
     fields = ["title", "content", "is_published"]
@@ -55,21 +56,51 @@ class VacancyDetailView(LoginRequiredMixin, DetailView):
             else:
                 context['user_cvs'] = CV.objects.none() #type: ignore
         else:
-            # HR видит все присланные резюме на эту вакансию
-            context['all_sent_cvs'] = self.object.sendCV.select_related('user').order_by('-time_create')  # type: ignore
+            # 1. Получаем отклики из промежуточной модели, отсортированные по баллам
+            responses = VacancyResponse.objects.filter(
+                vacancy=self.object
+            ).select_related('cv', 'cv__user').order_by('-match_score')
+
+            # 2. Формируем список резюме, "приклеивая" балл к каждому объекту
+            sorted_cvs = []
+            for r in responses:
+                cv = r.cv
+                cv.match_score = r.match_score  # Теперь у объекта CV есть атрибут match_score
+                sorted_cvs.append(cv)
+
+            # 3. Отдаем в шаблон под тем же именем, которое там уже используется
+            context['all_sent_cvs'] = sorted_cvs            
+            # context['all_sent_cvs'] = self.object.sendCV.select_related('user').order_by('-time_create')  # type: ignore
         return context
 
 
 class SendCVView(LoginRequiredMixin, View):
     def post(self, request, slug):
         vacancy = get_object_or_404(Vacancy, slug=slug)
-        cv_id = request.POST.get('cv_id')
+        cvId = request.POST.get('cv_id')
+        #TODO: сделать получение адреса через setting.py
+        endpoint = "http://localhost:1234/v1/embeddings" 
+        embedder = lmstudio.lmStudioCompare(url=endpoint)
+        matcher = match.cvMatcher(embedder)
         # Проверяем что резюме принадлежит текущему пользователю
-        cv = get_object_or_404(CV, pk=cv_id, user=request.user)
+        cv = get_object_or_404(CV, pk=cvId, user=request.user)
+        embCv=embedder.getEmbedding(cv.content)
+        embVacancy=embedder.getEmbedding(vacancy.content)
         # Запрещаем отправку, если пользователь уже откликнулся на эту вакансию
         if vacancy.sendCV.filter(user=request.user).exists():
             return redirect(vacancy.get_absolute_url())
+        try:
+            score = embedder.cosineCompare(embCv,embVacancy)
+            VacancyResponse.objects.create(
+                vacancy=vacancy,
+                cv=cv,
+                cv_embedding=embVacancy, 
+                match_score=round(score, 4)
+                )
+        except Exception as e:
+            print(f"Ошибка при расчете эмбеддингов: {e}")
         vacancy.sendCV.add(cv)
+        
         return redirect(vacancy.get_absolute_url())
 
 
