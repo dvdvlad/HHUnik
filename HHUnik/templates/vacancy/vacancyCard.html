@@ -1,0 +1,6 @@
+<div class="vacancyCard content" onclick="location.href='{{ item.get_absolute_url }}';">
+    <h2>{{item.title}}</h2>
+    <small>Опубликовано: {{ item.time_create|date:"Y.m.d" }}</small>
+    {% load markdownExtras %}
+    <p>{{item.content|truncatewords:50|latticeCleaner}}</p>
+</div>

@@ -1,0 +1,83 @@
+{% extends 'base.html' %} {% block content %} {% load markdownExtras %}
+<div class="content">
+    <h2>{{ item.title }}</h2>
+    <small>Создано: {{ item.time_create|date:"d.m.Y" }}</small>
+    {% if item.is_published %}
+    <span class="badge-published">Опубликовано</span>
+    {% else %}
+    <span class="badge-draft">Черновик</span>
+    {% endif %}
+    <p>{{ item.content|markdown|safe }}</p>
+
+    {% if request.user.isHR %}
+    <hr />
+    <h3>Отклики на вакансию</h3>
+    {% if all_sent_cvs %}
+    <p>Всего откликов: <strong>{{ all_sent_cvs|length }}</strong></p>
+    {% for cv in all_sent_cvs %}
+    <div class="vacancyCard">
+        <a href="{{ cv.get_absolute_url }}">{{ cv.title }}</a>
+        {% if cv.match_score %}
+            <span class="badge-match">Соответствие: {{ cv.match_score|floatformat:2 }}</span>
+        {% endif %}
+        {% if cv.is_published %}
+        <span class="badge-published">Опубликовано</span>
+        {% else %}
+        <span class="badge-draft">Черновик</span>
+        {% endif %}
+        <span>
+            Соискатель:{{cv.user.username}} 
+        </span>
+        <span>Отправлено: {{ cv.time_create|date:"d.m.Y" }}</span>
+        {% if cv.content %}
+        <p class="cv-card-preview">{{ cv.content|truncatechars:150 }}</p>
+        {% endif %}
+        <a href="{{ cv.get_absolute_url }}">Просмотреть резюме</a>
+    </div>
+    {% endfor %} {% else %}
+    <p>На эту вакансию пока нет откликов.</p>
+    {% endif %}
+    <a href="{% url 'main:hrAccountPage' %}">← Мои вакансии</a>
+
+    {% else %}
+    <h3>Откликнуться на вакансию</h3>
+    {% if sent_cvs %}
+    <strong>Уже отправлено:</strong>
+    <ul>
+        {% for cv in sent_cvs %}
+        <li>
+            {{ cv.title }}
+            <form
+                method="post"
+                action="{% url 'vacancyAndCv:withdrawCV' item.slug %}"
+            >
+                {% csrf_token %}
+                <input type="hidden" name="cv_id" value="{{ cv.pk }}" />
+                <button type="submit">Отозвать</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+    <p>
+        Вы уже откликнулись на эту вакансию. Чтобы отправить другое резюме —
+        сначала отзовите текущее.
+    </p>
+    {% elif user_cvs %}
+    <form method="post" action="{% url 'vacancyAndCv:sendCV' item.slug %}">
+        {% csrf_token %}
+        <label for="cv_id">Выберите резюме:</label>
+        <select name="cv_id" id="cv_id">
+            {% for cv in user_cvs %}
+            <option value="{{ cv.pk }}">{{ cv.title }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Отправить</button>
+    </form>
+    {% else %}
+    <p>
+        У вас нет опубликованных резюме.
+        <a href="{% url 'vacancyAndCv:CV' %}">Создать резюме</a>
+    </p>
+    {% endif %} {% endif %}
+</div>
+{% endblock %}

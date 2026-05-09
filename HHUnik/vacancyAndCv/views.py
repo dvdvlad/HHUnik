@@ -1,20 +1,140 @@
-from django.views.generic.edit import CreateView
+from django.views.generic import CreateView, ListView, DetailView, View
+from django.shortcuts import get_object_or_404, redirect
 from vacancyAndCv.models import Vacancy, CV
 from django.urls import reverse_lazy
-class AddVacancy(CreateView):
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import HttpResponseForbidden
+from cvAndVacancyMatching.embeding import  lmstudio,match
+from cvAndVacancyMatching.models import VacancyResponse
+from .dtoTransfer import cvToDto, vacancyToDto
+class AddVacancy(LoginRequiredMixin, CreateView):
     model = Vacancy
-    fields = '__all__'
+    fields = ["title", "content", "is_published"]
     template_name = 'vacancy/addVacancy.html'
-    success_url = reverse_lazy('main:index')
-    extra_context = {
-        'title': 'Вакансии',
-    }
+    success_url = reverse_lazy('main:hrAccountPage')
 
-class AddСV(CreateView):
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        return super().form_valid(form)
+
+
+class AddСV(LoginRequiredMixin, CreateView):
     model = CV
-    fields = '__all__'
+    fields = ["title", "content", "is_published"]
     template_name = 'vacancy/addCV.html'
     success_url = reverse_lazy('main:index')
-    extra_context = {
-        'title': 'Добавление резюме',
-    }
+
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        return super().form_valid(form)
+
+
+class AllVacancyShow(LoginRequiredMixin, ListView):
+    model = Vacancy
+    template_name = 'vacancy/vacancyList.html'
+    context_object_name = 'items'
+
+    def get_queryset(self):
+        return Vacancy.objects.filter(is_published=True)#type: ignore
+
+
+class VacancyDetailView(LoginRequiredMixin, DetailView):
+    model = Vacancy
+    template_name = 'vacancy/vacancyFull.html'
+    context_object_name = 'item'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        if not user.isHR:
+            # Уже отправленные на эту вакансию
+            sent_cv_ids = self.object.sendCV.filter(user=user).values_list('pk', flat=True)
+            context['sent_cvs'] = CV.objects.filter(pk__in=sent_cv_ids)  #type: ignore
+            # Показываем список доступных резюме только если ещё ничего не отправлено
+            if not sent_cv_ids:
+                context['user_cvs'] = CV.objects.filter(user=user, is_published=True)  #type: ignore
+            else:
+                context['user_cvs'] = CV.objects.none() #type: ignore
+        else:
+            # 1. Получаем отклики из промежуточной модели, отсортированные по баллам
+            responses = VacancyResponse.objects.filter(
+                vacancy=self.object
+            ).select_related('cv', 'cv__user').order_by('-match_score')
+
+            # 2. Формируем список резюме, "приклеивая" балл к каждому объекту
+            sorted_cvs = []
+            for r in responses:
+                cv = r.cv
+                cv.match_score = r.match_score  # Теперь у объекта CV есть атрибут match_score
+                sorted_cvs.append(cv)
+
+            # 3. Отдаем в шаблон под тем же именем, которое там уже используется
+            context['all_sent_cvs'] = sorted_cvs            
+            # context['all_sent_cvs'] = self.object.sendCV.select_related('user').order_by('-time_create')  # type: ignore
+        return context
+
+
+class SendCVView(LoginRequiredMixin, View):
+    def post(self, request, slug):
+        vacancy = get_object_or_404(Vacancy, slug=slug)
+        cvId = request.POST.get('cv_id')
+        #TODO: сделать получение адреса через setting.py
+        endpoint = "http://localhost:1234/v1/embeddings" 
+        embedder = lmstudio.lmStudioCompare(url=endpoint)
+        matcher = match.cvMatcher(embedder)
+        # Проверяем что резюме принадлежит текущему пользователю
+        cv = get_object_or_404(CV, pk=cvId, user=request.user)
+        embCv=embedder.getEmbedding(cv.content)
+        embVacancy=embedder.getEmbedding(vacancy.content)
+        # Запрещаем отправку, если пользователь уже откликнулся на эту вакансию
+        if vacancy.sendCV.filter(user=request.user).exists():
+            return redirect(vacancy.get_absolute_url())
+        try:
+            score = embedder.cosineCompare(embCv,embVacancy)
+            VacancyResponse.objects.create(
+                vacancy=vacancy,
+                cv=cv,
+                cv_embedding=embVacancy, 
+                match_score=round(score, 4)
+                )
+        except Exception as e:
+            print(f"Ошибка при расчете эмбеддингов: {e}")
+        vacancy.sendCV.add(cv)
+        
+        return redirect(vacancy.get_absolute_url())
+
+
+class WithdrawCVView(LoginRequiredMixin, View):
+    def post(self, request, slug):
+        vacancy = get_object_or_404(Vacancy, slug=slug)
+        cv_id = request.POST.get('cv_id')
+        # Проверяем что резюме принадлежит текущему пользователю
+        cv = get_object_or_404(CV, pk=cv_id, user=request.user)
+        vacancy.sendCV.remove(cv)
+        return redirect(vacancy.get_absolute_url())
+
+
+class CVDetailView(LoginRequiredMixin, DetailView):
+    model = CV
+    template_name = 'vacancy/cvFull.html'
+    context_object_name = 'item'
+
+
+class ToggleCVPublishView(LoginRequiredMixin, View):
+    def post(self, request, slug):
+        cv = get_object_or_404(CV, slug=slug)
+        if cv.user != request.user:
+            return HttpResponseForbidden()
+        cv.is_published = not cv.is_published
+        cv.save()
+        return redirect('main:workerAccountPage')
+
+
+class ToggleVacancyPublishView(LoginRequiredMixin, View):
+    def post(self, request, slug):
+        vacancy = get_object_or_404(Vacancy, slug=slug)
+        if vacancy.user != request.user:
+            return HttpResponseForbidden()
+        vacancy.is_published = not vacancy.is_published
+        vacancy.save()
+        return redirect('main:hrAccountPage')

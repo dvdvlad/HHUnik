@@ -1,0 +1,8 @@
+{% extends 'base.html' %} {% block content%}
+<h1>Список всех вакансий</h1>
+<div class="vacancyList">
+    {% for item in items %} {% include "vacancy/vacancyCard.html" %} {% empty %}
+    <p>Постов пока нет.</p>
+    {% endfor %}
+</div>
+{% endblock %}

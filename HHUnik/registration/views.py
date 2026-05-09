@@ -1,32 +1,25 @@
-from django.http import HttpResponse
 from django.views.generic.edit import CreateView
-from django.shortcuts import render, redirect
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
-from django.contrib.auth.views import LoginView
-from django.contrib.auth import logout, get_user_model
+from django.contrib.auth.forms import AuthenticationForm , ValidationError
+from django.contrib.auth.views import LoginView, reverse_lazy
+from django.contrib.auth import  get_user_model,login
 from django.forms import ModelForm, CharField, PasswordInput
-# def index(request):
-#     return render(request, 'registration/test.html', {'title': 'Главная страница'})
-
-#def RegistrUser(request):
-#    return render(request, 'registration/test.html', {'title': 'Главная страница'})
-
-# def LogoutUser(request):
-#     logout(request)
-#     return redirect("main:index")
-
 
 class RegisterUserForm(ModelForm):
     username = CharField(label="Логин")
     password = CharField(label="Пароль", widget=PasswordInput)
     password2 = CharField(label="Повтор пароля", widget=PasswordInput)
-
     class Meta:
         model = get_user_model()
-        fields = ['username','password', 'password2']
+        fields = ['username','password', 'password2','isHR']
+    def clean_password2(self):
+        p1 = self.cleaned_data.get('password')
+        p2 = self.cleaned_data.get('password2')
+        if p1 != p2:
+            raise ValidationError("Пароли не совпадают!")
+        return p2   
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.set_password(self.cleaned_data["password"]) # Хешируем пароль
+        user.set_password(self.cleaned_data["password"]) 
         if commit:
             user.save()
         return user
@@ -34,6 +27,11 @@ class RegisterUserForm(ModelForm):
 class Registr(CreateView):
     template_name="registration/register.html"
     form_class = RegisterUserForm
+    success_url= reverse_lazy("main:index")
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        login(self.request, self.object)
+        return response
 
 class LoginUser(LoginView):
     form_class = AuthenticationForm
