@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% load markdownExtras %}
+{% block content %}
+        <div class="Vacanycard">
+            <h1>{{ item.title|latticeCleaner }}</h1>
+                {% if item.is_published %}
+                    <span class="badge-published">Опубликовано</span>
+                {% else %}
+                    <span class="badge-draft">Черновик</span>
+                {% endif %}
+                <h3>Опыт работы и навыки</h3>
+                {{ item.content|markdown|safe}}
+                <a href="javascript:history.back()" class="btn-secondary">Назад</a>
+                {% if request.user == item.user %}
+                    <a href="{% url 'vacancyAndCv:toggleCVPublish' item.slug %}" class="btn-edit">Изменить статус</a>
+                {% endif %}
+        </div>
+{% endblock %}

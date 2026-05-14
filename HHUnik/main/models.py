@@ -7,7 +7,8 @@ import uuid
 
 class User(AbstractUser):
     isHR = models.BooleanField(default=True)  # type: ignore
-
+    email = models.EmailField(max_length=254, unique=True, verbose_name='Почта')
+    phone = models.CharField(max_length=20, verbose_name='Телефон')
 
 class slugMixin:
     slugSourceField = "title"

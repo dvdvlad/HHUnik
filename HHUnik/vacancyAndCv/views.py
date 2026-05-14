@@ -9,10 +9,22 @@ from cvAndVacancyMatching.models import VacancyResponse
 from django.http import JsonResponse
 import tempfile,os
 import pymupdf4llm
+from django import forms
 
+
+class VacancyForm(forms.ModelForm):
+    class Meta:
+        model = Vacancy
+        fields = ["title", "content", "is_published"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            field.widget.attrs.update({'class': 'input'})
+            
 class AddVacancy(LoginRequiredMixin, CreateView):
     model = Vacancy
-    fields = ["title", "content", "is_published"]
+    form_class=VacancyForm
     template_name = 'vacancy/addVacancy.html'
     success_url = reverse_lazy('main:hrAccountPage')
 
@@ -20,10 +32,19 @@ class AddVacancy(LoginRequiredMixin, CreateView):
         form.instance.user = self.request.user
         return super().form_valid(form)
 
+class CVForm(forms.ModelForm):
+    class Meta:
+        model = Vacancy
+        fields = ["title", "content", "is_published"]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            field.widget.attrs.update({'class': 'input'})
+            
 class AddСV(LoginRequiredMixin, CreateView):
     model = CV
-    fields = ["title", "content", "is_published"]
+    form_class=CVForm
     template_name = 'vacancy/addCV.html'
     success_url = reverse_lazy('main:index')
 
@@ -210,6 +231,6 @@ class BulkResumeUploadView(LoginRequiredMixin, TemplateView):
     
             return JsonResponse({
                 "success": True,
-                "count": len(results),
+                "count_uploaded": len(results),
                 "results": results
             })

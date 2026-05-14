@@ -1,13 +1,32 @@
-{% extends 'base.html' %} {% block content%}
-<div> 
-<h1>Создание резюме</h1>
+{% extends 'base.html' %} 
+{% block content %}
+<div class="card">
+<h1 class="label" style="font-size: 28px; margin-bottom: 30px; border-bottom: 2px solid #f0f7ff; padding-bottom: 15px;">
+Написание резюме
+</h1>
 <form method="post">
-    {% csrf_token %}
-    <input type="hidden" name="next" value="{{ next }}" />
-    {% for f in form %}
-    <p ><label class="form-label" for="{{ f.id_for_label }}">{{f.label}}:</label>{{ f }}</p>
-    <div class="form-error">{{ f.errors }}</div>
-    {% endfor %}<p><button type="submit">Сохранить резюме</button></p>
+{% csrf_token %}
+<input type="hidden" name="next" value="{{ next }}" />
+{% for f in form %}
+    <div style="margin-bottom: 20px; width: 100%;">
+    <label class="form-label" for="{{ f.id_for_label }}" style="display: block; color: #0070ba; font-weight: bold; margin-bottom: 8px;">
+        {{ f.label }}
+    </label>
+        {{ f }}
+    {% if f.errors %}
+            {{ f.errors }}
+    {% endif %}
+    {% if f.help_text %}
+        <small style="color: #999; display: block; margin-top: 5px;">{{ f.help_text }}</small>
+    {% endif %}
+    </div>
+{% endfor %}
+    <button type="submit" style="width: auto; padding: 12px 40px;">
+        Сохранить резюме
+    </button>
+    <a href="{% url 'main:workerAccountPage' %}" style="display: flex; align-items: center; text-decoration: none; color: #666; font-size: 14px;">
+        Отмена
+    </a>
 </form>
 </div>
 {% endblock %}

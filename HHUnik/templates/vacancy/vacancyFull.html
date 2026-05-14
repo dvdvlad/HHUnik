@@ -1,83 +1,103 @@
+
 {% extends 'base.html' %} {% block content %} {% load markdownExtras %}
-<div class="content">
-    <h2>{{ item.title|latticeCleaner}}</h2>
-    <small>Создано: {{ item.time_create|date:"d.m.Y" }}</small>
-    {% if item.is_published %}
-    <span class="badge-published">Опубликовано</span>
-    {% else %}
-    <span class="badge-draft">Черновик</span>
-    {% endif %}
-    <p>{{ item.content|markdown|safe }}</p>
+<div class="container"> <!-- Используем общий контейнер для центровки -->
+    
+    <!-- Основная карточка вакансии -->
+    <div class="card" style="width: 100%; max-width: 900px; height: auto;">
+        <h1 class="label" style="font-size: 28px; margin-bottom: 10px;">{{ item.title|latticeCleaner }}</h1>
+        
+        <div style="margin-bottom: 20px;">
+            <small style="color: #666;">Создано: {{ item.time_create|date:"d.m.Y" }}</small>
+            {% if item.is_published %}
+                <span class="badge-published" style="margin-left: 15px; color: green; font-weight: bold;">● Опубликовано</span>
+            {% else %}
+                <span class="badge-draft" style="margin-left: 15px; color: gray;">● Черновик</span>
+            {% endif %}
+        </div>
 
-    {% if request.user.isHR %}
-    <hr />
-    <h3>Отклики на вакансию</h3>
-    {% if all_sent_cvs %}
-    <p>Всего откликов: <strong>{{ all_sent_cvs|length }}</strong></p>
-    {% for cv in all_sent_cvs %}
-    <div class="vacancyCard">
-        <a href="{{ cv.get_absolute_url }}">{{ cv.title }}</a>
-        {% if cv.match_score %}
-            <span class="badge-match">Соответствие: {{ cv.match_score|floatformat:2 }}</span>
-        {% endif %}
-        {% if cv.is_published %}
-        <span class="badge-published">Опубликовано</span>
+        <div class="vacancy-content" style="line-height: 1.6; color: #333; border-top: 1px solid #eee; padding-top: 20px;">
+            {{ item.content|markdown|safe }}
+        </div>
+
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;" />
+
+        <!-- Блок для HR: Отклики -->
+        {% if request.user.isHR %}
+            <h3 class="label">Отклики на вакансию ({{ all_sent_cvs|length }})</h3>
+            
+            {% if all_sent_cvs %}
+                <div class="cv-list">
+                    {% for cv in all_sent_cvs %}
+                    <div class="VacancyCard" style="border: 1px solid #4fb3d933; background: #f9fbfc;">
+                        <a href="{{ cv.get_absolute_url }}" style="font-size: 18px; font-weight: bold;">{{ cv.title }}</a>
+                        
+                        <div style="margin: 10px 0;">
+                            <span style="color: #0070ba;">Соискатель: <strong>{{ cv.user.username }}</strong></span>
+                            {% if cv.match_score %}
+                                <span style="margin-left: 15px; background: #e3f2fd; padding: 3px 8px; border-radius: 5px;">
+                                    Соответствие: {{ cv.match_score|floatformat:0 }}%
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <p style="font-size: 14px; color: #555;">{{ cv.content|truncatechars:150 }}</p>
+                        
+                        <a href="{{ cv.get_absolute_url }}" class="vtb-button" style="width: auto; display: inline-block; padding: 8px 15px; font-size: 14px; text-decoration: none;">
+                            Открыть резюме
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p style="color: #999;">На эту вакансию пока нет откликов.</p>
+            {% endif %}
+            
+            <div style="margin-top: 30px;">
+                <a href="{% url 'main:hrAccountPage' %}" style="text-decoration: none; color: #0070ba;">← К списку моих вакансий</a>
+            </div>
+
+        <!-- Блок для Соискателя: Откликнуться -->
         {% else %}
-        <span class="badge-draft">Черновик</span>
+            <div class="application-zone" style="background: #f0f7ff; padding: 25px; border-radius: 15px;">
+                <h3 class="label">Откликнуться на вакансию</h3>
+                
+                {% if sent_cvs %}
+                    <div style="background: #fff; padding: 15px; border-radius: 10px; border-left: 4px solid #00a0e3;">
+                        <strong>Вы уже откликнулись:</strong>
+                        <ul style="list-style: none; padding: 0; margin-top: 10px;">
+                            {% for cv in sent_cvs %}
+                            <li style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>{{ cv.title }}</span>
+                                <form method="post" action="{% url 'vacancyAndCv:withdrawCV' item.slug %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="cv_id" value="{{ cv.pk }}" />
+                                    <button type="submit" style="width: auto; background: #ff4d4d; padding: 5px 15px;">Отозвать</button>
+                                </form>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% elif user_cvs %}
+                    <form method="post" action="{% url 'vacancyAndCv:sendCV' item.slug %}">
+                        {% csrf_token %}
+                        <div style="display: flex; gap: 10px; align-items: flex-end;">
+                            <div style="flex-grow: 1;">
+                                <label for="cv_id" style="display: block; margin-bottom: 5px; color: #666;">Выберите ваше резюме:</label>
+                                <select name="cv_id" id="cv_id" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc;">
+                                    {% for cv in user_cvs %}
+                                    <option value="{{ cv.pk }}">{{ cv.title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <button type="submit" style="width: auto; padding: 10px 30px;">Отправить отклик</button>
+                        </div>
+                    </form>
+                {% else %}
+                    <p>У вас нет опубликованных резюме. <a href="{% url 'vacancyAndCv:CV' %}" style="color: #00a0e3;">Создать резюме</a></p>
+                {% endif %}
+            </div>
         {% endif %}
-        <span>
-            Соискатель:{{cv.user.username}} 
-        </span>
-        <span>Отправлено: {{ cv.time_create|date:"d.m.Y" }}</span>
-        {% if cv.content %}
-        <p class="cv-card-preview">{{ cv.content|truncatechars:150 }}</p>
-        {% endif %}
-        <a href="{{ cv.get_absolute_url }}">Просмотреть резюме</a>
     </div>
-    {% endfor %} {% else %}
-    <p>На эту вакансию пока нет откликов.</p>
-    {% endif %}
-    <a href="{% url 'main:hrAccountPage' %}">← Мои вакансии</a>
-
-    {% else %}
-    <h3>Откликнуться на вакансию</h3>
-    {% if sent_cvs %}
-    <strong>Уже отправлено:</strong>
-    <ul>
-        {% for cv in sent_cvs %}
-        <li>
-            {{ cv.title }}
-            <form
-                method="post"
-                action="{% url 'vacancyAndCv:withdrawCV' item.slug %}"
-            >
-                {% csrf_token %}
-                <input type="hidden" name="cv_id" value="{{ cv.pk }}" />
-                <button type="submit">Отозвать</button>
-            </form>
-        </li>
-        {% endfor %}
-    </ul>
-    <p>
-        Вы уже откликнулись на эту вакансию. Чтобы отправить другое резюме —
-        сначала отзовите текущее.
-    </p>
-    {% elif user_cvs %}
-    <form method="post" action="{% url 'vacancyAndCv:sendCV' item.slug %}">
-        {% csrf_token %}
-        <label for="cv_id">Выберите резюме:</label>
-        <select name="cv_id" id="cv_id">
-            {% for cv in user_cvs %}
-            <option value="{{ cv.pk }}">{{ cv.title }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit">Отправить</button>
-    </form>
-    {% else %}
-    <p>
-        У вас нет опубликованных резюме.
-        <a href="{% url 'vacancyAndCv:CV' %}">Создать резюме</a>
-    </p>
-    {% endif %} {% endif %}
 </div>
 {% endblock %}
+

@@ -1,6 +1,28 @@
-<div class="vacancyCard content" onclick="location.href='{{ item.get_absolute_url }}';">
-    {% load markdownExtras %}
-    <h2>{{item.title|latticeCleaner}}</h2>
-    <small>Опубликовано: {{ item.time_create|date:"Y.m.d" }}</small>
-    <p>{{item.content|truncatewords:50|latticeCleaner}}</p>
+{% load markdownExtras %}
+<div class="card vacancy-card shadow-sm border-0">
+    <div class="card-body">
+        <!-- Заголовок и Компания -->
+        <div class="d-flex justify-content-between align-items-start">
+            <h5 class="card-title mb-1">
+                <a href="{{ item.get_absolute_url }}" class="text-decoration-none text-dark fw-bold">
+                    {{ item.title }}
+                </a>
+            </h5>
+            <span class="badge bg-light text-primary">New</span>
+        </div>
+        
+        <p class="text-muted small mb-2">
+            <i class="bi bi-building"></i> Telegraph • 
+            <i class="bi bi-clock"></i> Опубликовано: {{ item.created_at|date:"d.m.Y" }}
+        </p>
+
+        <div class="card-text text-secondary mb-3">
+            {# Используем linebreaks, чтобы сохранить переносы строк из PDF #}
+            {{ item.content|truncatewords:40|latticeCleaner}}
+        </div>
+        <div class="d-flex gap-2">
+            <span class="badge rounded-pill bg-light text-secondary border">Remote</span>
+            <span class="badge rounded-pill bg-light text-secondary border">Full-time</span>
+        </div>
+    </div>
 </div>

@@ -1,50 +1,61 @@
-<!-- upload_resumes.html -->
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Загрузка резюме</title>
-</head>
-<body>
-    <h2>Загрузка нескольких PDF</h2>
+{% extends 'base.html' %} 
+{% block content %}
+<div style="margin-bottom: 20px; width: 100%;" class="card">
+    <label class="form-label" style="color: #0070ba; display: block; margin-bottom: 10px;">
+        Выберите или перетащите один или несколько файлов:
+    </label>
     
-    <form id="uploadForm">
-        {% csrf_token %}
+    <!-- Интерактивная drop-зона во всю ширину -->
+    <label for="fileInput" class="drop-zone">
+        <span class="drop-zone-text">Нажмите или перетащите PDF файлы сюда</span>
         <input type="file" name="resumes" id="fileInput" multiple accept=".pdf">
-        <button type="submit" id="submitBtn">Загрузить в базу</button>
-    </form>
+    </label>
+</div>
+<script>
+const dropZone = document.querySelector('.drop-zone');
+const fileInput = document.getElementById('fileInput');
+const dropZoneText = document.querySelector('.drop-zone-text');
 
-    <div id="status" style="margin-top: 20px;"></div>
+// Подсветка при перетаскивании файла над зоной
+['dragenter', 'dragover'].forEach(eventName => {
+    dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    }, false);
+});
 
-    <script>
-        const form = document.getElementById('uploadForm');
-        const statusDiv = document.getElementById('status');
+// Убираем подсветку, если файл увели из зоны или сбросили
+['dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+    }, false);
+});
 
-        form.onsubmit = async (e) => {
-            e.preventDefault();
-            
-            const formData = new FormData(form);
-            statusDiv.innerHTML = "<b>Загрузка и обработка... Пожалуйста, подождите.</b>";
-            document.getElementById('submitBtn').disabled = true;
+// Обработка самого сброса файла (передача файлов в input)
+dropZone.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    fileInput.files = files;
+    
+    // Меняем текст на количество выбранных файлов
+    updateText();
+});
 
-            try {
-                const response = await fetch("", { // Отправляем на тот же URL
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value
-                    }
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    statusDiv.innerHTML = `<span style="color: green;">Успешно! Обработано файлов: ${result.count_uploaded}</span>`;
-                }
-            } catch (error) {
-                statusDiv.innerHTML = '<span style="color: red;">Произошла ошибка при загрузке.</span>';
-            } finally {
-                document.getElementById('submitBtn').disabled = false;
-            }
-        };
-    </script>
-</body>
-</html>
+// Изменение текста при обычном клике и выборе через окно
+fileInput.addEventListener('change', () => {
+    updateText();
+});
+
+function updateText() {
+    if (fileInput.files.length > 0) {
+        dropZoneText.innerText = `Выбрано файлов: ${fileInput.files.length}`;
+        dropZoneText.style.color = '#0070ba';
+        dropZoneText.style.fontWeight = 'bold';
+    } else {
+        dropZoneText.innerText = 'Нажмите или перетащите PDF файлы сюда';
+        dropZoneText.style.color = '#555';
+        dropZoneText.style.fontWeight = 'normal';
+    }
+}</script>
+{% endblock %}

@@ -8,18 +8,22 @@ class RegisterUserForm(ModelForm):
     username = CharField(label="Логин")
     password = CharField(label="Пароль", widget=PasswordInput)
     password2 = CharField(label="Повтор пароля", widget=PasswordInput)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name, field in self.fields.items():
+            field.widget.attrs.update({'class': 'input'})
     class Meta:
         model = get_user_model()
-        fields = ['username','password', 'password2','isHR']
+        fields = ['username','password', 'password2','isHR','phone','email']
     def clean_password2(self):
         p1 = self.cleaned_data.get('password')
         p2 = self.cleaned_data.get('password2')
         if p1 != p2:
             raise ValidationError("Пароли не совпадают!")
-        return p2   
+        return p2
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.set_password(self.cleaned_data["password"]) 
+        user.set_password(self.cleaned_data["password"])
         if commit:
             user.save()
         return user
