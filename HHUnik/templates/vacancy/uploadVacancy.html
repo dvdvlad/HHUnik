@@ -1,61 +1,175 @@
-{% extends 'base.html' %} 
-{% block content %}
-<div style="margin-bottom: 20px; width: 100%;" class="card">
-    <label class="form-label" style="color: #0070ba; display: block; margin-bottom: 10px;">
+{% extends 'base.html' %} {% block content %}
+<div style="margin-bottom: 20px; width: 100%" class="card">
+    <label
+        class="form-label"
+        style="color: #0070ba; display: block; margin-bottom: 10px"
+    >
         Выберите или перетащите один или несколько файлов:
     </label>
-    
-    <!-- Интерактивная drop-зона во всю ширину -->
+
     <label for="fileInput" class="drop-zone">
-        <span class="drop-zone-text">Нажмите или перетащите PDF файлы сюда</span>
-        <input type="file" name="resumes" id="fileInput" multiple accept=".pdf">
+        <span class="drop-zone-text"
+            >Нажмите или перетащите PDF файлы сюда</span
+        >
+        <input
+            type="file"
+            name="resumes"
+            id="fileInput"
+            multiple
+            accept=".pdf"
+        />
     </label>
 </div>
+
+<!-- Кнопка отправки (скрыта по умолчанию через стиль, отображение контролируется в JS) -->
+<button id="uploadBtn" type="button" style="display: none">
+    Загрузить файлы
+</button>
+
+<!-- Блок для отображения прогресса/статуса загрузки -->
+<div id="uploadStatus" style="display: none"></div>
+
+<!-- Тег для безопасной передачи CSRF-токена в JavaScript -->
+{% csrf_token %}
+
 <script>
-const dropZone = document.querySelector('.drop-zone');
-const fileInput = document.getElementById('fileInput');
-const dropZoneText = document.querySelector('.drop-zone-text');
+    const dropZone = document.querySelector(".drop-zone");
+    const fileInput = document.getElementById("fileInput");
+    const dropZoneText = document.querySelector(".drop-zone-text");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const statusDiv = document.getElementById("uploadStatus");
 
-// Подсветка при перетаскивании файла над зоной
-['dragenter', 'dragover'].forEach(eventName => {
-    dropZone.addEventListener(eventName, (e) => {
-        e.preventDefault();
-        dropZone.classList.add('dragover');
-    }, false);
-});
+    // Получаем CSRF-токен из тега Django
+    const csrfToken = document.querySelector(
+        "[name=csrfmiddlewaretoken]",
+    ).value;
 
-// Убираем подсветку, если файл увели из зоны или сбросили
-['dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('dragover');
-    }, false);
-});
+    // Блокируем дефолтное поведение браузера для drop-событий
+    ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
+        window.addEventListener(eventName, (e) => e.preventDefault(), false);
+    });
 
-// Обработка самого сброса файла (передача файлов в input)
-dropZone.addEventListener('drop', (e) => {
-    const dt = e.dataTransfer;
-    const files = dt.files;
-    fileInput.files = files;
-    
-    // Меняем текст на количество выбранных файлов
-    updateText();
-});
+    // Анимация зоны при перетаскивании
+    ["dragenter", "dragover"].forEach((eventName) => {
+        dropZone.addEventListener(
+            eventName,
+            () => dropZone.classList.add("dragover"),
+            false,
+        );
+    });
 
-// Изменение текста при обычном клике и выборе через окно
-fileInput.addEventListener('change', () => {
-    updateText();
-});
+    ["dragleave", "drop"].forEach((eventName) => {
+        dropZone.addEventListener(
+            eventName,
+            () => dropZone.classList.remove("dragover"),
+            false,
+        );
+    });
 
-function updateText() {
-    if (fileInput.files.length > 0) {
-        dropZoneText.innerText = `Выбрано файлов: ${fileInput.files.length}`;
-        dropZoneText.style.color = '#0070ba';
-        dropZoneText.style.fontWeight = 'bold';
-    } else {
-        dropZoneText.innerText = 'Нажмите или перетащите PDF файлы сюда';
-        dropZoneText.style.color = '#555';
-        dropZoneText.style.fontWeight = 'normal';
+    // Обработка сброса файлов
+    dropZone.addEventListener("drop", (e) => {
+        const files = e.dataTransfer.files;
+        const dataTransfer = new DataTransfer();
+
+        // Фильтруем только PDF файлы
+        for (let i = 0; i < files.length; i++) {
+            if (
+                files[i].type === "application/pdf" ||
+                files[i].name.endsWith(".pdf")
+            ) {
+                dataTransfer.items.add(files[i]);
+            }
+        }
+
+        fileInput.files = dataTransfer.files;
+        updateUI();
+    });
+
+    // Обработка выбора файлов через стандартное окно
+    fileInput.addEventListener("change", updateUI);
+
+    // Функция обновления текста и видимости кнопки
+    function updateUI() {
+        const fileCount = fileInput.files.length;
+        if (fileCount > 0) {
+            dropZoneText.innerText = `Выбрано файлов: ${fileCount}`;
+            dropZoneText.style.color = "#0070ba";
+            dropZoneText.style.fontWeight = "bold";
+            uploadBtn.style.display = "block"; // Показываем кнопку «Загрузить»
+            statusDiv.style.display = "none"; // Скрываем старые статусы ошибок, если они были
+        } else {
+            dropZoneText.innerText = "Нажмите или перетащите PDF файлы сюда";
+            dropZoneText.style.color = "#555";
+            dropZoneText.style.fontWeight = "normal";
+            uploadBtn.style.display = "none"; // Прячем кнопку обратно
+        }
     }
-}</script>
+
+    // Слушатель клика на кнопку «Загрузить»
+    uploadBtn.addEventListener("click", () => {
+        const files = fileInput.files;
+        if (files.length === 0) return;
+
+        const formData = new FormData();
+        for (let i = 0; i < files.length; i++) {
+            formData.append("resumes", files[i]);
+        }
+
+        showStatus("Файлы обрабатываются, пожалуйста, подождите...", "#0070ba");
+
+        // Блокируем элементы интерфейса во время загрузки
+        uploadBtn.disabled = true;
+        dropZone.style.pointerEvents = "none";
+
+        fetch(window.location.href, {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": csrfToken,
+            },
+            body: formData,
+        })
+            .then((response) =>
+                response
+                    .json()
+                    .then((data) => ({ status: response.status, body: data })),
+            )
+            .then((res) => {
+                if (res.status === 200 && res.body.success) {
+                    showStatus(
+                        `Успешно создано вакансий: ${res.body.count_uploaded}`,
+                        "green",
+                    );
+                    console.log("Результат:", res.body.results);
+
+                    // Полностью сбрасываем форму после успешной отправки
+                    fileInput.value = "";
+                    updateUI();
+                } else {
+                    showStatus(
+                        `Ошибка: ${res.body.error || "Неизвестная ошибка сервера"}`,
+                        "red",
+                    );
+                }
+            })
+            .catch((error) => {
+                console.error("Ошибка AJAX:", error);
+                showStatus(
+                    "Произошла сетевая ошибка при отправке файлов.",
+                    "red",
+                );
+            })
+            .finally(() => {
+                // Возвращаем элементы интерфейса в рабочее состояние
+                uploadBtn.disabled = false;
+                dropZone.style.pointerEvents = "auto";
+            });
+    });
+
+    // Вспомогательная функция статусов
+    function showStatus(text, color) {
+        statusDiv.innerText = text;
+        statusDiv.style.color = color;
+        statusDiv.style.display = "block";
+    }
+</script>
 {% endblock %}

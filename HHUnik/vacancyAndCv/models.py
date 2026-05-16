@@ -12,8 +12,7 @@ class Vacancy(slugMixin,models.Model):
     slugSourceField = "title"
     slugUrlName = "vacancyAndCv:vacancyCard"
     slug = models.SlugField(max_length=255, unique=True, blank=True,db_index=True, verbose_name="URL")
-    sendCV = models.ManyToManyField('CV',related_name='vacancies')
-
+    sendCV = models.ManyToManyField('CV', through='VacancyResponse', related_name='sent_vacancies')
 class CV(slugMixin,models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='cvs')
     title = models.CharField(max_length=255)
@@ -25,3 +24,10 @@ class CV(slugMixin,models.Model):
     slugUrlName = "vacancyAndCv:cvCard"
     slug = models.SlugField(max_length=255, unique=True, blank=True,db_index=True, verbose_name="URL")
     
+    
+class VacancyResponse(models.Model):
+    vacancy = models.ForeignKey('vacancyAndCv.Vacancy', on_delete=models.CASCADE, related_name='responses')
+    cv = models.ForeignKey('vacancyAndCv.CV', on_delete=models.CASCADE, related_name='applications')
+    cv_embedding = models.JSONField(null=True, blank=True, help_text="Векторное представление резюме")
+    match_score = models.FloatField(default=0.0)
+    created_at = models.DateTimeField(auto_now_add=True)

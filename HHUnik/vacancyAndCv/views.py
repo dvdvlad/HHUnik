@@ -1,15 +1,14 @@
 from django.views.generic import CreateView, ListView, DetailView, View, TemplateView
 from django.shortcuts import get_object_or_404, redirect
-from vacancyAndCv.models import Vacancy, CV
+from vacancyAndCv.models import Vacancy, CV, VacancyResponse
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.utils.html import strip_tags
 from django.http import HttpResponseForbidden
-from cvAndVacancyMatching.embeding import  lmstudio,match
-from cvAndVacancyMatching.models import VacancyResponse
-from django.http import JsonResponse
-import tempfile,os
-import pymupdf4llm
 from django import forms
+from cvAndVacancyMatching.embeding import  lmstudio,match
+from django.http import JsonResponse
+import tempfile,os,re,pymupdf4llm
 
 
 class VacancyForm(forms.ModelForm):
@@ -21,7 +20,7 @@ class VacancyForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for name, field in self.fields.items():
             field.widget.attrs.update({'class': 'input'})
-            
+
 class AddVacancy(LoginRequiredMixin, CreateView):
     model = Vacancy
     form_class=VacancyForm
@@ -34,14 +33,14 @@ class AddVacancy(LoginRequiredMixin, CreateView):
 
 class CVForm(forms.ModelForm):
     class Meta:
-        model = Vacancy
+        model = CV
         fields = ["title", "content", "is_published"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for name, field in self.fields.items():
             field.widget.attrs.update({'class': 'input'})
-            
+
 class AddСV(LoginRequiredMixin, CreateView):
     model = CV
     form_class=CVForm
@@ -93,38 +92,48 @@ class VacancyDetailView(LoginRequiredMixin, DetailView):
                 sorted_cvs.append(cv)
 
             # 3. Отдаем в шаблон под тем же именем, которое там уже используется
-            context['all_sent_cvs'] = sorted_cvs            
+            context['all_sent_cvs'] = sorted_cvs
             # context['all_sent_cvs'] = self.object.sendCV.select_related('user').order_by('-time_create')  # type: ignore
         return context
 
 
+
 class SendCVView(LoginRequiredMixin, View):
+    def clean_text(self,raw_text):
+        if not raw_text:
+            return ""
+        text = strip_tags(raw_text)
+        text = re.sub(r'(Стр\.\s*\d+\s*из\s*\d+|Report content on this page|Стр\.\s*\d+)', '', text, flags=re.IGNORECASE)
+        text = re.sub(r'\s+', ' ', text)
+        return text[:6000].strip()
     def post(self, request, slug):
         vacancy = get_object_or_404(Vacancy, slug=slug)
         cvId = request.POST.get('cv_id')
-        #TODO: сделать получение адреса через setting.py
-        endpoint = "http://localhost:1234/v1/embeddings" 
+
+        endpoint = "http://localhost:1234/v1/embeddings"
         embedder = lmstudio.lmStudioCompare(url=endpoint)
-        matcher = match.cvMatcher(embedder)
-        # Проверяем что резюме принадлежит текущему пользователю
+
         cv = get_object_or_404(CV, pk=cvId, user=request.user)
-        embCv=embedder.getEmbedding(cv.content)
-        embVacancy=embedder.getEmbedding(vacancy.content)
-        # Запрещаем отправку, если пользователь уже откликнулся на эту вакансию
+
         if vacancy.sendCV.filter(user=request.user).exists():
             return redirect(vacancy.get_absolute_url())
+        embCv = embedder.getEmbedding(self.clean_text(cv.content))
+        embVacancy = embedder.getEmbedding(self.clean_text(vacancy.content))
+
         try:
-            score = embedder.cosineCompare(embCv,embVacancy)
+            score = embedder.cosineCompare(embCv, embVacancy)
+            # Создание записи в VacancyResponse автоматически создаст связь в vacancy.sendCV
             VacancyResponse.objects.create(
                 vacancy=vacancy,
                 cv=cv,
-                cv_embedding=embVacancy, 
+                cv_embedding=embCv,  # ИСПРАВЛЕНО: сохраняем эмбеддинг резюме, а не вакансии
                 match_score=round(score, 4)
-                )
+            )
         except Exception as e:
             print(f"Ошибка при расчете эмбеддингов: {e}")
-        vacancy.sendCV.add(cv)
-        
+            # Если эмбеддинги упали, но отклик засчитать нужно без скоринга:
+            VacancyResponse.objects.create(vacancy=vacancy, cv=cv, match_score=0.0)
+
         return redirect(vacancy.get_absolute_url())
 
 
@@ -132,11 +141,10 @@ class WithdrawCVView(LoginRequiredMixin, View):
     def post(self, request, slug):
         vacancy = get_object_or_404(Vacancy, slug=slug)
         cv_id = request.POST.get('cv_id')
-        # Проверяем что резюме принадлежит текущему пользователю
         cv = get_object_or_404(CV, pk=cv_id, user=request.user)
-        vacancy.sendCV.remove(cv)
-        return redirect(vacancy.get_absolute_url())
+        VacancyResponse.objects.filter(vacancy=vacancy, cv=cv).delete()
 
+        return redirect(vacancy.get_absolute_url())
 
 class CVDetailView(LoginRequiredMixin, DetailView):
     model = CV
@@ -166,36 +174,30 @@ class ToggleVacancyPublishView(LoginRequiredMixin, View):
 
 
 class BulkResumeUploadView(LoginRequiredMixin, TemplateView):
-    # Указываем имя шаблона
-    template_name = 'vacancy/uploadVacancy.html' 
-
+    template_name = 'vacancy/uploadVacancy.html'
     def post(self, request, *args, **kwargs):
             files = request.FILES.getlist("resumes")
             results = []
-    
+
             if not files:
                 return JsonResponse({"success": False, "error": "Файлы не получены"}, status=400)
-    
+
             for uploaded_file in files:
                 if not uploaded_file.name.endswith('.pdf'):
                     continue
-    
-                # 1. Создаем временный файл
-                # delete=False нужен, чтобы файл не удалился сразу после закрытия дескриптора, 
-                # так как pymupdf4llm будет открывать его по пути (path)
                 with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_file:
                     for chunk in uploaded_file.chunks():
                         temp_file.write(chunk)
                     temp_path = temp_file.name
-    
+
                 try:
                     # 2. Конвертируем PDF в Markdown через pymupdf4llm
                     md_text = pymupdf4llm.to_markdown(temp_path)
-    
+
                     # 3. Отделяем заголовок от контента
                     # Очищаем текст от лишних пробелов и делим на строки
                     lines = [line.strip() for line in md_text.split('\n') if line.strip()]
-                    
+
                     if lines:
                         # Заголовок — первая строка (убираем символы Markdown #)
                         parsed_title = lines[0].lstrip('#').strip()
@@ -204,31 +206,28 @@ class BulkResumeUploadView(LoginRequiredMixin, TemplateView):
                     else:
                         parsed_title = uploaded_file.name
                         parsed_content = md_text
-    
-                    # 4. Сохраняем в БД
-                    # slug сгенерируется автоматически благодаря вашему slugMixin
                     vacancy_obj = Vacancy.objects.create(
                         user=request.user,           # Привязка к текущему пользователю
                         title=parsed_title,          # Заголовок из PDF
                         content=parsed_content,      # Текст из PDF
                         is_published=True            # Или False, по вашему усмотрению
                     )
-    
+
                     results.append({
                         "id": vacancy_obj.id,
                         "title": vacancy_obj.title,
                         "slug": vacancy_obj.slug
                     })
-    
+
                 except Exception as e:
                     # В продакшене лучше использовать logging
                     print(f"Ошибка обработки файла {uploaded_file.name}: {str(e)}")
-                    continue 
+                    continue
                 finally:
                     # Удаляем временный файл вручную
                     if os.path.exists(temp_path):
                         os.remove(temp_path)
-    
+
             return JsonResponse({
                 "success": True,
                 "count_uploaded": len(results),
