@@ -45,9 +45,13 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "HHUnik.wsgi.application"
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": "/home/dvd/Share/ProgramingPrject/HHUnik/HHUnik/db.sqlite3"
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'hr_ai_db',
+        'USER': 'hr_admin',
+        'PASSWORD': '123',
+        'HOST': '127.0.0.1',  # или 'localhost'
+        'PORT': '5432',
     }
 }
 AUTH_PASSWORD_VALIDATORS = [
