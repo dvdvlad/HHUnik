@@ -6,7 +6,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.html import strip_tags
 from django.http import HttpResponseForbidden
 from django import forms
-from cvAndVacancyMatching.embeding import  lmstudio,match
+from cvAndVacancyMatching.embeding import  lmstudio,match,yandex
 from django.http import JsonResponse
 import tempfile,os,re,pymupdf4llm
 
@@ -99,7 +99,7 @@ class VacancyDetailView(LoginRequiredMixin, DetailView):
 
 
 class SendCVView(LoginRequiredMixin, View):
-    def clean_text(self,raw_text):
+    def clean_text(self,raw_text)->str:
         if not raw_text:
             return ""
         text = strip_tags(raw_text)
@@ -109,19 +109,25 @@ class SendCVView(LoginRequiredMixin, View):
     def post(self, request, slug):
         vacancy = get_object_or_404(Vacancy, slug=slug)
         cvId = request.POST.get('cv_id')
-
-        endpoint = "http://localhost:1234/v1/embeddings"
-        embedder = lmstudio.lmStudioCompare(url=endpoint)
+        embedder = yandex.YandexCompare()
 
         cv = get_object_or_404(CV, pk=cvId, user=request.user)
 
         if vacancy.sendCV.filter(user=request.user).exists():
             return redirect(vacancy.get_absolute_url())
+        
+        cleaned_cv = self.clean_text(cv.content)
+        cleaned_vacancy = self.clean_text(vacancy.content)
+        print("====== ОТПРАВЛЯЕМЫЙ ТЕКСТ РЕЗЮМЕ ======")
+        print(cleaned_cv[:500])
+        print("====== ОТПРАВЛЯЕМЫЙ ТЕКСТ ВАКАНСИИ ======")
+        print(cleaned_vacancy[:500])
+        print("=========================================")
         embCv = embedder.getEmbedding(self.clean_text(cv.content))
-        embVacancy = embedder.getEmbedding(self.clean_text(vacancy.content))
+        embVacancy = embedder.getEmbedding(self.clean_text(vacancy.content),is_query=True)
 
         try:
-            score = embedder.cosineCompare(embCv, embVacancy)
+            score = embedder.cosineCompare(embVacancy,embCv)
             # Создание записи в VacancyResponse автоматически создаст связь в vacancy.sendCV
             VacancyResponse.objects.create(
                 vacancy=vacancy,
@@ -133,6 +139,8 @@ class SendCVView(LoginRequiredMixin, View):
             print(f"Ошибка при расчете эмбеддингов: {e}")
             # Если эмбеддинги упали, но отклик засчитать нужно без скоринга:
             VacancyResponse.objects.create(vacancy=vacancy, cv=cv, match_score=0.0)
+        finally:
+            embedder.close()
 
         return redirect(vacancy.get_absolute_url())
 

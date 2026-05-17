@@ -21,7 +21,8 @@ ENV/
 # Файлы IDE (VS Code, PyCharm)
 .vscode/
 .idea/
-
+.env
+authorized_key.json
 # Логи и статика (по желанию)
 *.log
 static/

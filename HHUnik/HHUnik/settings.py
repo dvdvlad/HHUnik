@@ -1,8 +1,16 @@
+import os  
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = "django-insecure-*76dl_wk(88%*0^g9js+a9j=3x8pzo!5)!7^b)h7n86u8enk=q"
-DEBUG = True
+
+# 1. СНАЧАЛА ОБЪЯВЛЯЕМ КЛЮЧ И ДЕБАГ (В самом верху файла)
+SECRET_KEY = os.environ.get('SECRET_KEY')
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() in ['true', '1', 'yes']
+
+# Если ключа нет в .env, выставляем безопасную заглушку для локальной разработки
+if not SECRET_KEY:
+    SECRET_KEY = 'local-secret-key-for-development-purposes-only-12345'
+
 ALLOWED_HOSTS = ['*']
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -16,22 +24,24 @@ INSTALLED_APPS = [
     "vacancyAndCv",
     "cvAndVacancyMatching",
 ]
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
 ROOT_URLCONF = "HHUnik.urls"
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [
-            BASE_DIR/"templates"
-            ],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -44,58 +54,61 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "HHUnik.wsgi.application"
+
+# База данных жестко завязана на переменные окружения из .env и docker-compose
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'hr_ai_db',
-        'USER': 'hr_admin',
-        'PASSWORD': '123',
-        'HOST': '127.0.0.1',  # или 'localhost'
+        'NAME': os.environ.get('DB_NAME', 'hr_ai_db'),
+        'USER': os.environ.get('DB_USER', 'hr_admin'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', '123'),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': '5432',
     }
 }
+
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
+
 LANGUAGE_CODE = "ru-RU"
-
 TIME_ZONE = "UTC"
-
 USE_I18N = True
-
 USE_TZ = True
+
 STATIC_URL = "static/"
-STATICFILES_DIRS = [BASE_DIR / "static"]
+STATIC_ROOT = BASE_DIR / "static"
+
+if not DEBUG:
+    if 'local-secret' in SECRET_KEY:
+        raise ValueError("Критическая ошибка: ПЕРЕМЕННАЯ SECRET_KEY НЕ ЗАДАНА В .ENV НА ПРОДАКШЕНЕ!")
+
+    ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'yourdomain.com 127.0.0.1 localhost').split()
+
+    # ВЫКЛЮЧАЕМ локальный HTTPS-редирект для тестов на 127.0.0.1
+    # Когда выкатишь на реальный сервер за Nginx, вернешь True
+    SECURE_SSL_REDIRECT = False 
+    
+    # Отключаем принудительный SSL для куки-файлов на время локальных тестов
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    
+    # Сбрасываем HSTS в 0, чтобы браузер не блокировал HTTP-соединение на локалке
+    SECURE_HSTS_SECONDS = 0
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
+# Настройки статики (STATIC_ROOT меняем на изолированную папку, как обсуждали)
+STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+STATICFILES_DIRS = [
+    BASE_DIR / "main" / "static",
+]
+
 LOGOUT_REDIRECT_URL = 'main:index'
 LOGIN_REDIRECT_URL = 'main:index'
 AUTH_USER_MODEL = 'main.User'
 LOGIN_URL = 'registration:Login'
-
-# ---------------------------------------------------------------------------
-# LM Studio — локальный сервер эмбеддингов
-# ---------------------------------------------------------------------------
-# Базовый URL OpenAI-совместимого API LM Studio.
-# Порт по умолчанию: 1234. Убедитесь, что сервер запущен в LM Studio
-# (кнопка «Start Server» в разделе «Local Server»).
-LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
-
-# Идентификатор модели эмбеддингов, загруженной в LM Studio.
-# Укажите точное название из интерфейса, например:
-#   "nomic-ai/nomic-embed-text-v1.5-GGUF"
-#   "text-embedding-nomic-embed-text-v1.5"
-# Если None — LM Studio использует текущую активную модель.
-LM_STUDIO_EMBEDDING_MODEL = None
-
-# Таймаут HTTP-запроса к LM Studio в секундах.
-LM_STUDIO_TIMEOUT = 30

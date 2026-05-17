@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=hr_ai_db
+      - POSTGRES_USER=hr_admin
+      - POSTGRES_PASSWORD=Undertake-Deviant-Attractor-Abnormal-Pastrami3-Twisty
+      - DJANGO_SECRET_KEY=${SECRET_KEY} 
+      - DJANGO_DEBUG=${DEBUG}
+    ports:
+      - "5432:5432"
+
+  web:
+    build: .
+    restart: always
+    entrypoint: ./entrypoint.sh
+    env_file: .env
+    command: >
+      bash -c "python manage.py migrate &&
+               python manage.py collectstatic --noinput &&
+               gunicorn myproject.wsgi:application --bind 0.0.0.0:8000"
+    volumes:
+      - .:/app
+      - static_volume:/app/static
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=db
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
+  static_volume:

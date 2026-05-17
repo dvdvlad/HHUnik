@@ -1,0 +1,215 @@
+/* 1. Глобальные настройки */
+* {
+    box-sizing: border-box; /* Заменяет множественные повторения */
+}
+
+body {
+    background-color: #faf9f9;
+}
+
+a {
+    outline: none;
+    text-decoration: none;
+}
+
+input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #4fb3d9;
+    border-radius: 0;
+    padding: 8px 0;
+    margin-bottom: 15px;
+    outline: none;
+    color: #4fb3d9;
+    font-size: 16px;
+    box-shadow: none;
+}
+
+input:focus { border-bottom: 2px solid #0099cc; }
+input::placeholder { color: #a0d8ef; opacity: 1; }
+
+/* 2. Структура и Layout */
+.container {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+.header ul {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0 20px;
+    list-style: none;
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.list li {
+    padding: 10px 20px;
+    color: #faf9f9;
+}
+
+.list a { color: #049dd8; }
+
+.push-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+}
+
+.push-right p {
+    width: auto;
+    margin: 0;
+    white-space: nowrap;
+}
+
+/* 3. Карточки */
+.card {
+    background-color: #ffffff;
+    width: 50%;
+    padding: 30px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 25px;
+    margin: 5px;
+}
+
+.card form { margin-bottom: 15px; }
+.card button { margin-bottom: 10px; }
+
+/* Объединенный селектор Vacanycard */
+.card.Vacanycard {
+    min-height: auto;
+    width: 100%;
+    margin: 15px 0; 
+    padding: 20px;
+    border: 1px solid #eee;
+    border-radius: 15px;
+    color: black;
+}
+
+/* Слегка подсвечиваем карточку при наведении */
+.vacancy-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border-radius: 12px; /* Скругленные углы */
+    background: #ffffff;
+}
+
+.vacancy-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+    border-left: 4px solid #0d6efd; /* Синяя полоска слева при ховере */
+}
+
+.vacancy-list { margin: 0 auto; }
+.card-title a:hover { color: #0d6efd !important; }
+
+/* 4. Формы и специфичные инпуты */
+input[type="text"].input,
+textarea.input {
+    display: block;
+    width: 100%;
+    padding: 10px;
+}
+
+textarea.input {
+    min-height: 200px;
+    resize: vertical;
+}
+
+input[type="checkbox"].input {
+    display: inline-block;
+    width: auto;
+}
+
+/* 5. Кнопки */
+.butVTB, button, input[type="submit"], input[type="button"] {
+    background-color: #00a0e3;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    margin: 0 5px; /* Сокращено */
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    width: 100%;
+    font-size: 16px;
+    transition: background-color 0.3s ease, transform 0.1s ease;
+    outline: none;
+}
+
+.butVTB:hover, button:hover, input[type="submit"]:hover, input[type="button"]:hover { 
+    background-color: #0080b5; 
+}
+
+/* Кнопка слегка прожимается */
+.butVTB:active, button:active, input[type="submit"]:active, input[type="button"]:active { 
+    transform: scale(0.98); 
+}
+
+/* 6. Прочие элементы (Drop Zone, ошибки, превью) */
+.photo-placeholder {
+    width: 150px;
+    height: 150px;
+    border: 2px solid #049dd8;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #049dd8;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.label {
+    display: block;
+    color: #0070ba;
+    font-size: 14px;
+}
+
+.preview { color: gray; }
+.error { color: red; }
+
+.drop-zone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 150px; /* Высота области перетаскивания */
+    border: 2px dashed #4fb3d9;
+    border-radius: 8px;
+    background-color: #f9fbfd;
+    cursor: pointer;
+    padding: 20px;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+/* Эффект при наведении курсора */
+.drop-zone:hover {
+    background-color: #f0f7ff;
+    border-color: #0070ba;
+}
+
+/* Стили для визуального изменения зоны при Dragover событии */
+.drop-zone.dragover {
+    background-color: #e6f7ff;
+    border-color: #0070ba;
+}
+
+/* Текст внутри зоны */
+.drop-zone-text {
+    color: #555;
+    font-size: 15px;
+    text-align: center;
+    font-family: sans-serif;
+}
+
+/* Полностью скрываем дефолтный input, но сохраняем его доступность */
+.drop-zone input[type="file"] {
+    display: none;
+}
