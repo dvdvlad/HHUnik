@@ -1,11 +1,12 @@
-import os  
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # 1. СНАЧАЛА ОБЪЯВЛЯЕМ КЛЮЧ И ДЕБАГ (В самом верху файла)
 SECRET_KEY = os.environ.get('SECRET_KEY')
-DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() in ['true', '1', 'yes']
+DEM= os.environ['DEMO']==True
+DEBUG = os.environ.get('DEBUG', 'False')
 
 # Если ключа нет в .env, выставляем безопасную заглушку для локальной разработки
 if not SECRET_KEY:
@@ -28,7 +29,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -83,19 +84,20 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "static"
 
 if not DEBUG:
+    print(DEBUG,SECRET_KEY)
     if 'local-secret' in SECRET_KEY:
         raise ValueError("Критическая ошибка: ПЕРЕМЕННАЯ SECRET_KEY НЕ ЗАДАНА В .ENV НА ПРОДАКШЕНЕ!")
 
-    ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'yourdomain.com 127.0.0.1 localhost').split()
+    ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '127.0.0.1 localhost').split()
 
     # ВЫКЛЮЧАЕМ локальный HTTPS-редирект для тестов на 127.0.0.1
     # Когда выкатишь на реальный сервер за Nginx, вернешь True
-    SECURE_SSL_REDIRECT = False 
-    
+    SECURE_SSL_REDIRECT = False
+
     # Отключаем принудительный SSL для куки-файлов на время локальных тестов
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
-    
+
     # Сбрасываем HSTS в 0, чтобы браузер не блокировал HTTP-соединение на локалке
     SECURE_HSTS_SECONDS = 0
     SECURE_HSTS_INCLUDE_SUBDOMAINS = False

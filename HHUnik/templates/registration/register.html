@@ -9,5 +9,11 @@
         <div class="form-error">{{ f.errors }}</div>
         {% endfor %}    <p><button type="submit">Регистрация</button></p>
     </form>
+    {% if DEMO %}
+        <p style="color: lightgray;">Не нужно вводить сюда свои персональные данные. Сайт работает в демонстрационном режиме, данные не сохраняются. Пожалуйста, используйте тестовый формат:</p>
+        <p style="color: lightgray;">Телефон: + и любые цифры</p>
+        <p style="color: lightgray;">Почта: латинский_текст@домен</p>
+    {% else %}
+    {% endif %}
 </div>
 {% endblock %}

@@ -24,11 +24,11 @@
                     <li>
                         <form
                             action="{% url 'main:workerAccountPage' %}"
-                            method="get"
-                        >
+                            method="get">
                             <button type="submit">Личный кабинет</button>
                         </form>
                     </li>
+                    {% endif %}
                     <li>
                         <form
                             action="{% url 'vacancyAndCv:listVacancy' %}"
@@ -37,7 +37,6 @@
                             <button type="submit">Список всех вакансий</button>
                         </form>
                     </li>
-                    {% endif %}
                     <li>
                         <form
                             action="{% url 'registration:Logout' %}"

@@ -1,46 +1,51 @@
-{% extends 'base.html' %}
-{% block content %}
-{% load markdownExtras %}
+{% extends 'base.html' %} {% block content %} {% load markdownExtras %}
 <div class="content">
     <div class="container">
         {% if user.isHR %}
-            <div class="card">
-                <p>Вы вошли как HR. Управление резюме доступно только соискателям.</p>
-            </div>
+        <div class="card">
+            <p>
+                Вы вошли как HR. Управление резюме доступно только соискателям.
+            </p>
+        </div>
         {% else %}
-            <div class="card">
-                <h3>Мои данные:</h3>
-                <p>ФИО: <span>{{ user.username }}</span></p>
-                <p>Номер: <span>{{ user.phone }}</span></p>
-                <p>e-mail: <span>{{ user.email }}</span></p>
-            </div>
-            <div class="card" style="width: 70%;">
-                <h2>Мои резюме</h2>
-                <form action="{% url 'vacancyAndCv:CV' %}" method="get">
+        <div class="card">
+            <h3>Мои данные:</h3>
+            <p>ФИО: <span>{{ user.username }}</span></p>
+            <p>Номер: <span>{{ user.phone }}</span></p>
+            <p>e-mail: <span>{{ user.email }}</span></p>
+        </div>
+        <div class="card">
+            <h2>Мои резюме</h2>
+            <form action="{% url 'vacancyAndCv:CV' %}" method="get">
+                <button type="submit">Написать резюме</button>
+            </form>
+            <div class="card Vacanycard">
+                {% for cv in cvs %}
+                <a href="{{ cv.get_absolute_url }}"
+                    ><strong>{{ cv.title|latticeCleaner}}</strong></a
+                >
+                {% if cv.is_published %}
+                <span class="badge-published">Опубликовано</span>
+                {% else %}
+                <span class="badge-draft">Черновик</span>
+                {% endif %}
+                <small>Создано: {{ cv.time_create|date:"d.m.Y" }} | </small>
+                <small>Обновлено: {{ cv.time_update|date:"d.m.Y" }}</small>
+                <a href="{{ cv.get_absolute_url }}">Просмотр</a>
+                <form
+                    method="post"
+                    action="{% url 'vacancyAndCv:toggleCVPublish' cv.slug %}"
+                    style="display: inline; margin-left: 10px"
+                >
+                    {% csrf_token %}
                     <button type="submit">
-                        Написать резюме
+                        {% if cv.is_published %} Снять с публикации {% else %}
+                        Опубликовать {% endif %}
                     </button>
                 </form>
-                <div class="card Vacanycard">
-                {% for cv in cvs %}
-                        <a href="{{ cv.get_absolute_url }}"><strong>{{ cv.title|latticeCleaner}}</strong></a>
-                        {% if cv.is_published %}
-                            <span class="badge-published">Опубликовано</span>
-                        {% else %}
-                            <span class="badge-draft">Черновик</span>
-                        {% endif %}
-                        <small>Создано: {{ cv.time_create|date:"d.m.Y" }} | </small>
-                        <small>Обновлено: {{ cv.time_update|date:"d.m.Y" }}</small>
-                        <a href="{{ cv.get_absolute_url }}">Просмотр</a>
-                        <form method="post" action="{% url 'vacancyAndCv:toggleCVPublish' cv.slug %}" style="display:inline; margin-left: 10px;">
-                            {% csrf_token %}
-                            <button type="submit">
-                                {% if cv.is_published %} Снять с публикации {% else %} Опубликовать {% endif %}
-                            </button>
-                        </form>
                 {% endfor %}
-                </div>
-            </div> 
+            </div>
+        </div>
         {% endif %}
     </div>
 </div>
