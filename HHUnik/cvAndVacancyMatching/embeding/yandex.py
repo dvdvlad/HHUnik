@@ -14,7 +14,6 @@ class YandexCompare(embedingCompare):
         url = "https://llm.api.cloud.yandex.net/foundationModels/v1/textEmbedding"
 
         headers = {
-            # Для API-ключей заголовок выглядит как Api-Key, а не Bearer!
             "Authorization": f"Api-Key {self.api_key}",
             "x-folder-id": self.folder_id,
             "Content-Type": "application/json",

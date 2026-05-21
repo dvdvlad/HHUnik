@@ -1,35 +1,41 @@
 from abc import ABC, abstractmethod
 import math
+from typing import List
 
 class embedingCompare(ABC):
     @abstractmethod
     def getEmbedding(self, text: str, is_query: bool = False) -> list[float]:
         pass
 
-    def get_human_percentage(self, cosine_score: float) -> int:
-        # Задаем эмпирические пороги для Яндекса
-        min_score = 0.26  # Все, что ниже или равно 0.35, станет 0%
-        max_score = 0.38  # Все, что выше или равно 0.65, станет 100%
+    def get_human_percentage(self, all_scores: List[float]) -> List[int]:
+        scores = [float(s) for s in all_scores if s is not None]
         
-        if cosine_score <= min_score:
-            return 0
-        if cosine_score >= max_score:
-            return 100
+        if not scores:
+            print("!!! КРИТИКА: scores пустой список в get_human_percentage !!!")
+            return []
             
-        # Считаем пропорцию внутри нашего рабочего диапазона
-        normalized = (cosine_score - min_score) / (max_score - min_score)
+        min_score = min(scores)
+        max_score = max(scores)
         
-        # Возвращаем округленный процент
-        return int(normalized * 100)
-
-    def cosineCompare(self, a: list[float], b: list[float]) -> int:
+        print(f"DEBUG: scores={scores}, min={min_score}, max={max_score}") # Увидите в логах докера
+        
+        # Если разница между лучшим и худшим кандидатом микроскопическая или кандидат один
+        if abs(max_score - min_score) < 1e-6:
+            return [100] * len(scores)
+            
+        percentages = []
+        for score in scores:
+            # Формула нормализации
+            normalized = (score - min_score) / (max_score - min_score)
+            percentages.append(int(normalized * 100))
+            
+        return percentages    
+    def cosineCompare(self, a: list[float], b: list[float]) -> float:
         dot = sum(x * y for x, y in zip(a, b))
         norm_a = math.sqrt(sum(x * x for x in a))
         norm_b = math.sqrt(sum(x * x for x in b))
 
         if norm_a == 0 or norm_b == 0:
             return 0
-
-        # Теперь self передан корректно, и результатом будет красивое число от 0 до 100
         raw_score = dot / (norm_a * norm_b)
-        return self.get_human_percentage(raw_score)
+        return raw_score

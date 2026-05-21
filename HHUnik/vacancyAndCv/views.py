@@ -67,37 +67,34 @@ class VacancyDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'item'
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        user = self.request.user
-        if not user.isHR:
-            # Уже отправленные на эту вакансию
-            sent_cv_ids = self.object.sendCV.filter(user=user).values_list('pk', flat=True)
-            context['sent_cvs'] = CV.objects.filter(pk__in=sent_cv_ids)  #type: ignore
-            # Показываем список доступных резюме только если ещё ничего не отправлено
-            if not sent_cv_ids:
-                context['user_cvs'] = CV.objects.filter(user=user, is_published=True)  #type: ignore
+            context = super().get_context_data(**kwargs)
+            user = self.request.user
+            
+            if not user.isHR:
+                sent_cv_ids = self.object.sendCV.filter(user=user).values_list('pk', flat=True)
+                context['sent_cvs'] = CV.objects.filter(pk__in=sent_cv_ids)  #type: ignore
+                if not sent_cv_ids:
+                    context['user_cvs'] = CV.objects.filter(user=user, is_published=True)  #type: ignore
+                else:
+                    context['user_cvs'] = CV.objects.none() #type: ignore
             else:
-                context['user_cvs'] = CV.objects.none() #type: ignore
-        else:
-            # 1. Получаем отклики из промежуточной модели, отсортированные по баллам
-            responses = VacancyResponse.objects.filter(
-                vacancy=self.object
-            ).select_related('cv', 'cv__user').order_by('-match_score')
-
-            # 2. Формируем список резюме, "приклеивая" балл к каждому объекту
-            sorted_cvs = []
-            for r in responses:
-                cv = r.cv
-                cv.match_score = r.match_score  # Теперь у объекта CV есть атрибут match_score
-                sorted_cvs.append(cv)
-
-            # 3. Отдаем в шаблон под тем же именем, которое там уже используется
-            context['all_sent_cvs'] = sorted_cvs
-            # context['all_sent_cvs'] = self.object.sendCV.select_related('user').order_by('-time_create')  # type: ignore
-        return context
-
-
-
+                responses = VacancyResponse.objects.filter(
+                    vacancy=self.object
+                ).select_related('cv', 'cv__user').order_by('-match_score')
+                raw_scores = [r.match_score for r in responses if r.match_score is not None]
+                embedder = yandex.YandexCompare()
+                percentages = embedder.get_human_percentage(raw_scores)
+                sorted_cvs = []
+                for r, percent in zip(responses, percentages):
+                    cv = r.cv
+                    cv.match_score = r.match_score  
+                    cv.human_percentage = percent 
+                    sorted_cvs.append(cv)
+                if hasattr(embedder, 'close'):
+                    embedder.close()
+                sorted_cvs.sort(key=lambda x: x.human_percentage, reverse=True)
+                context['all_sent_cvs'] = sorted_cvs
+            return context
 class SendCVView(LoginRequiredMixin, View):
     def clean_text(self,raw_text)->str:
         if not raw_text:
@@ -118,11 +115,6 @@ class SendCVView(LoginRequiredMixin, View):
         
         cleaned_cv = self.clean_text(cv.content)
         cleaned_vacancy = self.clean_text(vacancy.content)
-        print("====== ОТПРАВЛЯЕМЫЙ ТЕКСТ РЕЗЮМЕ ======")
-        print(cleaned_cv[:500])
-        print("====== ОТПРАВЛЯЕМЫЙ ТЕКСТ ВАКАНСИИ ======")
-        print(cleaned_vacancy[:500])
-        print("=========================================")
         embCv = embedder.getEmbedding(self.clean_text(cv.content))
         embVacancy = embedder.getEmbedding(self.clean_text(vacancy.content),is_query=True)
 
@@ -132,13 +124,12 @@ class SendCVView(LoginRequiredMixin, View):
             VacancyResponse.objects.create(
                 vacancy=vacancy,
                 cv=cv,
-                cv_embedding=embCv,  # ИСПРАВЛЕНО: сохраняем эмбеддинг резюме, а не вакансии
-                match_score=round(score, 4)
+                cv_embedding=embCv, 
+                match_score=score
             )
         except Exception as e:
             print(f"Ошибка при расчете эмбеддингов: {e}")
-            # Если эмбеддинги упали, но отклик засчитать нужно без скоринга:
-            VacancyResponse.objects.create(vacancy=vacancy, cv=cv, match_score=0.0)
+            VacancyResponse.objects.create(vacancy=vacancy, cv=cv, match_score=-1.0)
         finally:
             embedder.close()
 
